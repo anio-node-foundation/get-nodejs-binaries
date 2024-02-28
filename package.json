@@ -10,8 +10,8 @@
     "url": "git+https://github.com/anio-js-foundation/node-dl-node.git"
   },
   "devDependencies": {
-    "@anio-js-core-foundation/create-random-identifier": "^1.0.1",
-    "@anio-js-foundation/bundle-package": "^3.1.2"
+    "@anio-js-foundation/bundle-package": "^3.1.2",
+    "@anio-js-foundation/node-fs-utils-sync": "^1.0.0"
   },
   "scripts": {
     "prepare": "./node_modules/.bin/bundle-package ."

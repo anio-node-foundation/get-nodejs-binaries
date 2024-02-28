@@ -1,22 +1,24 @@
 import {execFile} from "node:child_process"
 import os from "node:os"
 import path from "node:path"
-import createRandomIdentifier from "@anio-js-core-foundation/create-random-identifier"
+
+import {
+	generateTemporaryPathNameSync,
+	hashFileSync,
+	removeSync
+} from "@anio-js-foundation/node-fs-utils-sync"
 import fs from "node:fs"
 
 import getAvailableVersions from "./getAvailableVersions.mjs"
 import getDownloadURL from "./getDownloadURL.mjs"
 import mapArchAndPlatform from "./mapArchAndPlatform.mjs"
-import calculateChecksum from "./calculateChecksum.mjs"
 
 //
 // todo: replace with fetch()
 //
 function downloadFileViaCURL(url) {
 	return new Promise((resolve, reject) => {
-		const file_dest_path = path.join(
-			os.tmpdir(), createRandomIdentifier(32)
-		)
+		const file_dest_path = generateTemporaryPathNameSync()
 
 		execFile("curl", [
 			url, "--output", file_dest_path
@@ -34,9 +36,7 @@ function downloadFileViaCURL(url) {
 
 function extractArchiveWithTar(tar_file) {
 	return new Promise((resolve, reject) => {
-		const dir_dest_path = path.join(
-			os.tmpdir(), createRandomIdentifier(32)
-		)
+		const dir_dest_path = generateTemporaryPathNameSync()
 
 		fs.mkdirSync(dir_dest_path)
 
@@ -56,7 +56,6 @@ function extractArchiveWithTar(tar_file) {
 }
 
 async function getChecksums(version, arch_platform_identifier) {
-	//
 	const response = await fetch(`https://nodejs.org/dist/${version}/SHASUMS256.txt`)
 	const body = await response.text()
 	const entries = body.split("\n")
@@ -84,9 +83,6 @@ async function getChecksums(version, arch_platform_identifier) {
 	return target_checksum
 }
 
-//
-// todo: cleanup on error
-//
 export default async function(version) {
 	const versions = await getAvailableVersions()
 
@@ -101,19 +97,35 @@ export default async function(version) {
 	const file_checksum = await getChecksums(version, arch_platform_identifier)
 
 	const url = await getDownloadURL(version)
-	const tmp_file = await downloadFileViaCURL(url)
 
-	const local_checksum = await calculateChecksum(tmp_file)
+	let temp_archive_file = null, temp_directory = null
 
-	if (file_checksum !== local_checksum) {
-		throw new Error(`Checksum error <${file_checksum} != ${local_checksum}>.`)
+	try {
+		temp_archive_file = await downloadFileViaCURL(url)
+
+		const local_checksum = hashFileSync(temp_archive_file, "sha256")
+
+		if (file_checksum !== local_checksum) {
+			throw new Error(`Checksum error <${file_checksum} != ${local_checksum}>.`)
+		}
+
+		temp_directory = await extractArchiveWithTar(temp_archive_file)
+
+		removeSync(temp_archive_file)
+
+		return {
+			path: path.join(temp_directory, arch_platform_identifier),
+			cleanup() {
+				removeSync(temp_directory)
+			}
+		}
+	} catch (error) {
+		//
+		// remove temporary items
+		//
+		if (temp_archive_file !== null) removeSync(temp_archive_file)
+		if (temp_directory !== null) removeSync(temp_directory)
+
+		throw error
 	}
-
-	const tmp_dir = await extractArchiveWithTar(tmp_file)
-
-	fs.unlinkSync(tmp_file)
-
-	return path.join(
-		tmp_dir, arch_platform_identifier
-	)
 }
