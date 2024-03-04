@@ -1,11 +1,11 @@
-# @anio-js-foundation/node-download-node
+# @anio-node-foundation/get-nodejs-binaries
 
 ```js
 import {
 	getAvailableVersions,
 	getDownloadURL,
 	download
-} from "@anio-js-foundation/node-download-node"
+} from "@anio-node-foundation/get-nodejs-binaries"
 
 const versions = await getAvailableVersions()
 const link = await getDownloadURL(versions[0])

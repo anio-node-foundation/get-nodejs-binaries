@@ -2,41 +2,35 @@ import {execFile} from "node:child_process"
 import os from "node:os"
 import path from "node:path"
 
-import {
-	generateTemporaryPathNameSync,
-	hashFileSync,
-	removeSync
-} from "@anio-js-foundation/node-fs-utils-sync"
+import nodeFsUtils from "@anio-node-foundation/fs-utils"
+
 import fs from "node:fs"
+import {Readable} from "node:stream"
+import {finished} from "node:stream/promises"
 
 import getAvailableVersions from "./getAvailableVersions.mjs"
 import getDownloadURL from "./getDownloadURL.mjs"
 import mapArchAndPlatform from "./mapArchAndPlatform.mjs"
 
-//
-// todo: replace with fetch()
-//
-function downloadFileViaCURL(url) {
-	return new Promise((resolve, reject) => {
-		const file_dest_path = generateTemporaryPathNameSync()
+async function downloadFile(url) {
+	const file_dest_path = await nodeFsUtils.generateTemporaryPathName()
 
-		execFile("curl", [
-			url, "--output", file_dest_path
-		], {
-			stdio: "pipe"
-		}, (error, stdout, stderr) => {
-			if (error) {
-				reject(error)
-			} else {
-				resolve(file_dest_path)
-			}
-		})
-	})
+	const response = await fetch(url)
+
+	const stream = fs.createWriteStream(file_dest_path)
+
+	const body = Readable.fromWeb(response.body)
+
+	body.pipe(stream)
+
+	await finished(body)
+
+	return file_dest_path
 }
 
 function extractArchiveWithTar(tar_file) {
 	return new Promise((resolve, reject) => {
-		const dir_dest_path = generateTemporaryPathNameSync()
+		const dir_dest_path = nodeFsUtils.generateTemporaryPathName.sync()
 
 		fs.mkdirSync(dir_dest_path)
 
@@ -101,9 +95,9 @@ export default async function(version) {
 	let temp_archive_file = null, temp_directory = null
 
 	try {
-		temp_archive_file = await downloadFileViaCURL(url)
+		temp_archive_file = await downloadFile(url)
 
-		const local_checksum = hashFileSync(temp_archive_file, "sha256")
+		const local_checksum = await nodeFsUtils.hashFile(temp_archive_file, "sha256")
 
 		if (file_checksum !== local_checksum) {
 			throw new Error(`Checksum error <${file_checksum} != ${local_checksum}>.`)
@@ -111,20 +105,20 @@ export default async function(version) {
 
 		temp_directory = await extractArchiveWithTar(temp_archive_file)
 
-		removeSync(temp_archive_file)
+		await nodeFsUtils.remove(temp_archive_file)
 
 		return {
 			path: path.join(temp_directory, arch_platform_identifier),
-			cleanup() {
-				removeSync(temp_directory)
+			async cleanup() {
+				await nodeFsUtils.remove(temp_directory)
 			}
 		}
 	} catch (error) {
 		//
 		// remove temporary items
 		//
-		if (temp_archive_file !== null) removeSync(temp_archive_file)
-		if (temp_directory !== null) removeSync(temp_directory)
+		if (temp_archive_file !== null) await nodeFsUtils.remove(temp_archive_file)
+		if (temp_directory !== null) await nodeFsUtils.remove(temp_directory)
 
 		throw error
 	}
