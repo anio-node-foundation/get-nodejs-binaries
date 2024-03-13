@@ -12,10 +12,18 @@ import getAvailableVersions from "./getAvailableVersions.mjs"
 import getDownloadURL from "./getDownloadURL.mjs"
 import mapArchAndPlatform from "./mapArchAndPlatform.mjs"
 
-async function downloadFile(url) {
+async function downloadFile(url, reportProgress = () => {}) {
+	reportProgress(0)
+
 	const file_dest_path = await nodeFsUtils.generateTemporaryPathName()
 
 	const response = await fetch(url)
+	let bytes_to_download = null
+	let bytes_processed = 0
+
+	if (response.headers.has("content-length")) {
+		bytes_to_download = parseInt(response.headers.get("content-length"), 10)
+	}
 
 	const stream = fs.createWriteStream(file_dest_path)
 
@@ -23,7 +31,23 @@ async function downloadFile(url) {
 
 	body.pipe(stream)
 
+	body.on("data", chunk => {
+		bytes_processed += chunk.length
+
+		/*
+		  100%.   bytes_to_download
+		  x       bytes_processed
+		*/
+		if (bytes_to_download === null) return
+
+		let percentage = (bytes_processed / bytes_to_download) * 100
+
+		reportProgress(percentage)
+	})
+
 	await finished(body)
+
+	reportProgress(100)
 
 	return file_dest_path
 }
@@ -77,7 +101,7 @@ async function getChecksums(version, arch_platform_identifier) {
 	return target_checksum
 }
 
-export default async function(version) {
+export default async function(version, reportProgress = () => {}) {
 	const versions = await getAvailableVersions()
 
 	if (!versions.includes(version)) {
@@ -95,7 +119,7 @@ export default async function(version) {
 	let temp_archive_file = null, temp_directory = null
 
 	try {
-		temp_archive_file = await downloadFile(url)
+		temp_archive_file = await downloadFile(url, reportProgress)
 
 		const local_checksum = await nodeFsUtils.hashFile(temp_archive_file, "sha256")
 
