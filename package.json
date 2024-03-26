@@ -2,7 +2,7 @@
   "name": "@anio-node-foundation/get-nodejs-binaries",
   "version": "0.4.0",
   "description": "Download node binaries.",
-  "main": "./dist/package.mjs",
+  "main": "./build/package.mjs",
   "author": "Anio Software <info@anio.software>",
   "license": "MIT",
   "repository": {
@@ -11,12 +11,13 @@
   },
   "devDependencies": {
     "@anio-node-foundation/fs-utils": "^3.0.0",
-    "@anio-software/npm-package-bundler": "^1.0.0"
+    "@vipen/target-js": "^0.7.0",
+    "vipen": "^0.1.0"
   },
   "scripts": {
-    "prepare": "./node_modules/.bin/npm-package-bundler ."
+    "prepare": "./node_modules/.bin/vipen ."
   },
   "files": [
-    "./dist/package.mjs"
+    "./build/package.mjs"
   ]
 }
