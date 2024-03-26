@@ -10,7 +10,7 @@
     "url": "git+https://github.com/anio-node-foundation/get-nodejs-binaries.git"
   },
   "devDependencies": {
-    "@anio-node-foundation/fs-utils": "^2.0.1",
+    "@anio-node-foundation/fs-utils": "^3.0.0",
     "@anio-software/npm-package-bundler": "^1.0.0"
   },
   "scripts": {
